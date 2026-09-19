@@ -7,6 +7,16 @@ plugins {
     id("io.papermc.paperweight.userdev") version "2.0.0-beta.23" apply false
 }
 
+java { toolchain.languageVersion = JavaLanguageVersion.of(25) }
+dependencies {
+    compileOnly("net.fabricmc:sponge-mixin:${providers.gradleProperty("mixinVersion").get()}")
+    testImplementation("net.fabricmc:sponge-mixin:${providers.gradleProperty("mixinVersion").get()}")
+    testImplementation(platform("org.junit:junit-bom:5.14.1"))
+    testImplementation("org.junit.jupiter:junit-jupiter")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+}
+tasks.test { useJUnitPlatform() }
+
 allprojects {
     group = rootProject.group
     version = rootProject.version
@@ -89,8 +99,11 @@ val verifyBundle by tasks.registering {
             mixinConfigs.forEach { name ->
                 val config = json(name)
                 check(config["required"] == true) { "$name must fail on application errors" }
-                val mixins = config["mixins"] as List<*>
+                val mixins = config["patchMixins"] as List<*>
                 check(mixins.isNotEmpty()) { "$name contains no mixins" }
+                check((config["mixins"] as List<*>).isEmpty()) { "$name must select mixins through its platform plugin" }
+                val pluginPath = (config["plugin"] as String).replace('.', '/') + ".class"
+                check(jar.getEntry(pluginPath) != null) { "Missing platform selector: $pluginPath" }
                 mixins.forEach { mixin ->
                     val path = "${config["package"]}.$mixin".replace('.', '/') + ".class"
                     check(jar.getEntry(path) != null) { "Missing mixin class: $path" }
@@ -106,3 +119,9 @@ val verifyBundle by tasks.registering {
 }
 
 tasks.check { dependsOn(verifyBundle) }
+
+tasks.register<Jar>("paperProofJar") {
+    dependsOn(tasks.testClasses)
+    archiveFileName = "sneakypatches-paper-proof.jar"
+    from(sourceSets.test.get().output)
+}

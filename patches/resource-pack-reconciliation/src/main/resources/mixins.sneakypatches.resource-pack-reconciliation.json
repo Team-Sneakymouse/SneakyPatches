@@ -1,0 +1,10 @@
+{
+  "required": true,
+  "minVersion": "0.8.7",
+  "package": "com.sneakyrp.sneakypatches.packs.mixin",
+  "plugin": "com.sneakyrp.sneakypatches.bootstrap.VelocityPatches",
+  "compatibilityLevel": "JAVA_25",
+  "mixins": [],
+  "patchMixins": ["ProxyPlayerMixin", "PackSendMixin", "PackRemoveMixin", "ConfigurationMixin", "SessionMixin", "RecordMixin", "VelocityStartupMixin", "VelocityBackendDedupMixin"],
+  "injectors": {"defaultRequire": 1}
+}

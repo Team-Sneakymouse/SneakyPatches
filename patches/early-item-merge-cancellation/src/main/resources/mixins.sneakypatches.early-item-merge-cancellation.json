@@ -3,6 +3,8 @@
   "minVersion": "0.8.7",
   "package": "com.sneakyrp.sneakypatches.itemmerge.mixin",
   "compatibilityLevel": "JAVA_25",
-  "mixins": ["ItemEntityMixin"],
+  "plugin": "com.sneakyrp.sneakypatches.bootstrap.PaperPatches",
+  "mixins": [],
+  "patchMixins": ["ItemEntityMixin"],
   "injectors": {"defaultRequire": 1}
 }
