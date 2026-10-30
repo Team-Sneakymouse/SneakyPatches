@@ -1,11 +1,5 @@
 # Agent instructions
 
-Follow `../EmptyPlugin/AGENTS.md` for the shared rules.
+Resolve shared policy using `.team-policy/pointer.json` (paths relative to this repository). Clone the configured remote into the first candidate if missing; otherwise fetch and fast-forward the tracked branch when safe. Report blocked updates.
 
-## Repo-specific rules
-
-- This is not a Bukkit plugin: no `JavaPlugin`, no `plugin.yml`, no Bukkit API. Keep each patch self-contained under `patches/<name>` in package `com.sneakyrp.sneakypatches.<patch>`, and never add one patch's dependencies to another.
-- Mixins are gated by the platform selectors (`bootstrap/PlatformPatches`, `PaperPatches`, `VelocityPatches`) so Paper never resolves Velocity targets and the reverse. Register new mixins through them and add a target test like `ItemEntityTargetTest` / `VelocityDedupTargetTest`.
-- Version pins (Paper, Mixin, Velocity, CE Proxy, Ignite) live in `gradle.properties` and the README. Don't bump them casually; re-verify against the hook tests and an isolated server first.
-- Build jars come from outside: pass `-PcraftEngineProxyJar` and `-PvelocityJar` (or use ignored `.scratch/dependencies/`). Never commit them, and keep the README's tested CE Proxy SHA-256 accurate.
-- Proxy-affecting changes (resource-pack-reconciliation) need an announced maintenance window and a full proxy restart. Don't ship a version bump without Rawb confirming.
+Before implementing, read the resolved checkout's `README.md` and follow its linked guidance relevant to the task.
