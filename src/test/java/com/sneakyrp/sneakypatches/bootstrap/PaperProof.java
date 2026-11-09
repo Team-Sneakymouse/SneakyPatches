@@ -5,7 +5,7 @@ import java.util.Arrays;
 /** Class-transformation proof only; starts no world or listener and accepts no EULA. */
 public final class PaperProof {
     public static void main(String[] args) throws Exception {
-        PaperPatches paper = new PaperPatches(); paper.onLoad("");
+        PaperPatches paper = new PaperPatches(); paper.onLoad("com.sneakyrp.sneakypatches.itemmerge.mixin");
         VelocityPatches velocity = new VelocityPatches(); velocity.onLoad("");
         if (paper.getMixins().isEmpty() || !velocity.getMixins().isEmpty())
             throw new AssertionError("Wrong platform patches selected");
