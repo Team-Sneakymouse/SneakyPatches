@@ -186,6 +186,74 @@ class RangeCategoriesTest {
     }
 
     @Test
+    void tagAliasPutsAnotherPluginsTagInACategory() {
+        var c = parse("short = 32", "long = 128", "@tag.grounditem = short", "@tag.Lights.Big+1 = long");
+        assertTrue(c.problems().isEmpty(), String.join("\n", c.problems()));
+        assertEquals(Map.of("grounditem", "short", "Lights.Big+1", "long"), c.tagAliases());
+        assertEquals(32, c.rangeFor(Set.of("grounditem"), n -> fail()));
+        assertEquals(128, c.rangeFor(Set.of("Lights.Big+1"), n -> fail()));
+        assertEquals(RangeCategories.NONE, c.rangeFor(Set.of("GroundItem", "grounditem2", "short"), n -> fail()));
+        assertTrue(c.decidesRange("grounditem"));
+        assertTrue(c.decidesRange("tracking.anything"));
+        assertFalse(c.decidesRange("GroundItem"));
+        assertFalse(c.decidesRange(null));
+    }
+
+    @Test
+    void aliasAndCategoryTagsTogetherWidestWins() {
+        var c = parse("short = 32", "long = 128", "@tag.grounditem = short");
+        assertEquals(128, c.rangeFor(List.of("grounditem", "tracking.long"), n -> fail()));
+        assertEquals(128, c.rangeFor(List.of("tracking.long", "grounditem"), n -> fail()));
+        // An unknown category tag next to an aliased tag: the alias still applies, the unknown one is reported.
+        var unknown = new ArrayList<String>();
+        assertEquals(32, c.rangeFor(List.of("tracking.nope", "grounditem"), unknown::add));
+        assertEquals(List.of("nope"), unknown);
+    }
+
+    @Test
+    void aliasMayNameACategoryDefinedLater() {
+        var c = parse("@tag.grounditem = short", "short = 32");
+        assertTrue(c.problems().isEmpty(), String.join("\n", c.problems()));
+        assertEquals(32, c.rangeFor(Set.of("grounditem"), n -> fail()));
+    }
+
+    @Test
+    void badAliasesAreSkippedAndReportedInLineOrder() {
+        var c = parse(
+            "short = 32",                    // 1 fine
+            "@tag.grounditem = shrt",        // 2 no such category
+            "@tag. = short",                 // 3 empty tag
+            "@tag.has space = short",        // 4 not a tag character
+            "@tag.tracking.short = short",   // 5 already a category tag
+            "@tag.drops = short",            // 6 fine
+            "@tag.drops = short",            // 7 set twice
+            "@tag." + "a".repeat(65) + " = short", // 8 too long
+            "@tags.drops = short",           // 9 unknown setting
+            "@tag.removed = gone"            // 10 category removed from the file
+        );
+        assertEquals(Map.of("drops", "short"), c.tagAliases());
+        assertEquals(8, c.problems().size(), String.join("\n", c.problems()));
+        int previous = 0;
+        for (String problem : c.problems()) {
+            int line = Integer.parseInt(problem.substring(5, problem.indexOf(':')));
+            assertTrue(line > previous, "not in line order: " + c.problems());
+            previous = line;
+        }
+        assertTrue(c.problems().getFirst().contains("names no category 'shrt' (categories: short)"));
+        assertTrue(c.problems().get(4).startsWith("line 7: @tag.drops is set twice; keeping the first (short)"));
+        assertTrue(c.problems().get(6).startsWith("line 9: unknown setting"));
+        // Without the alias, the tag decides nothing: the entity keeps its normal range.
+        assertEquals(RangeCategories.NONE, c.rangeFor(Set.of("grounditem"), n -> fail()));
+        assertFalse(c.decidesRange("grounditem"));
+    }
+
+    @Test
+    void noAliasesByDefault() {
+        assertEquals(Map.of(), parse("short = 32").tagAliases());
+        assertEquals(Map.of(), RangeCategories.EMPTY.tagAliases());
+    }
+
+    @Test
     void categoryTagDetection() {
         assertTrue(RangeCategories.isCategoryTag("tracking.far"));
         assertFalse(RangeCategories.isCategoryTag("far"));

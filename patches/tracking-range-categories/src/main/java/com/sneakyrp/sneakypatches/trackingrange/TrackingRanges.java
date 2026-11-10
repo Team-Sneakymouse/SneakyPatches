@@ -49,6 +49,10 @@ public final class TrackingRanges {
         "long = 128",
         "extreme = 256",
         "",
+        "# Tags other plugins already set: @tag.<scoreboard tag> = <category> puts every entity with that tag in the",
+        "# category, as if it had tracking.<category>. Category tags still apply; the widest wins. Example:",
+        "#   @tag.grounditem = short",
+        "",
         "# Ranges for entities without a category tag, in every world. 'spigot' uses spigot.yml",
         "# entity-tracking-range; a number replaces it. Paper's spigot.yml defaults: players 128, animals 96,",
         "# monsters 96, misc 96 (items, item frames, paintings, xp), display 128, other 64 (everything else).",
@@ -114,7 +118,7 @@ public final class TrackingRanges {
 
     /** Called after a tag was really added or removed. */
     public static void tagChanged(Entity entity, String tag) {
-        if (RangeCategories.isCategoryTag(tag)) refresh(entity, true);
+        if (categories.decidesRange(tag)) refresh(entity, true);
     }
 
     /** A display's view range changed: follow it, unless another plugin has set this tracker's range itself. */
@@ -178,7 +182,8 @@ public final class TrackingRanges {
         int refreshed = refreshAll();
         LOGGER.info("[SneakyPatches] Reloaded tracking range categories from {}: {}{}; {} entities changed range", path,
             parsed.ranges().isEmpty() ? "none" : parsed.ranges(),
-            (parsed.typeDefaults().isEmpty() ? "" : ", type defaults " + parsed.typeDefaults())
+            (parsed.tagAliases().isEmpty() ? "" : ", tag aliases " + parsed.tagAliases())
+                + (parsed.typeDefaults().isEmpty() ? "" : ", type defaults " + parsed.typeDefaults())
                 + (parsed.displayViewScale() == 0 ? "" : ", display view scale " + parsed.displayViewScale()),
             refreshed);
         return new ReloadResult(true, List.of(), refreshed);
@@ -193,17 +198,18 @@ public final class TrackingRanges {
 
     private static int refreshAll() {
         WARNED_UNKNOWN.clear();
+        RangeCategories current = categories;
         int refreshed = 0;
         for (ServerLevel level : MinecraftServer.getServer().getAllLevels()) {
             for (Entity entity : level.getAllEntities()) {
                 boolean tagged = false;
                 for (String tag : entity.entityTags()) {
-                    if (RangeCategories.isCategoryTag(tag)) {
+                    if (current.decidesRange(tag)) {
                         tagged = true;
                         break;
                     }
                 }
-                // Tagged: the category is explicit, so it replaces even a range another plugin set. Untagged
+                // Tagged (category or aliased tag): explicit, so it replaces even a range another plugin set. Untagged
                 // (a type default or the display limit may have changed): only while the range is still ours.
                 if (refresh(entity, tagged)) refreshed++;
             }
@@ -230,8 +236,9 @@ public final class TrackingRanges {
             for (String problem : parsed.problems()) {
                 LOGGER.error("[SneakyPatches] {} {}: skipped", path, problem);
             }
-            LOGGER.info("[SneakyPatches] Tracking range categories from {}: {}{}{}", path,
+            LOGGER.info("[SneakyPatches] Tracking range categories from {}: {}{}{}{}", path,
                 parsed.ranges().isEmpty() ? "none" : parsed.ranges(),
+                parsed.tagAliases().isEmpty() ? "" : "; tag aliases " + parsed.tagAliases(),
                 parsed.typeDefaults().isEmpty() ? "" : "; type defaults (replace spigot.yml) " + parsed.typeDefaults(),
                 parsed.displayViewScale() == 0 ? "" : "; display view scale " + parsed.displayViewScale());
             return parsed;
