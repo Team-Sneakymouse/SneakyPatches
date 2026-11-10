@@ -43,6 +43,7 @@ without bundling Velocity.
 | [early-item-merge-cancellation](patches/early-item-merge-cancellation/README.md) | Returns at the start of item neighbor merging, globally |
 | [resource-pack-reconciliation](patches/resource-pack-reconciliation/README.md) | Velocity + CE Proxy: reconciles the ordered destination pack stack during configuration |
 | [tracking-range-categories](patches/tracking-range-categories/README.md) | Paper: per-entity tracking ranges by scoreboard tag (`tracking.<name>`, or any existing tag mapped with `@tag.<tag> = <category>`), reloadable with `/trackingranges` |
+| [tracker-pair-recheck](patches/tracker-pair-recheck/README.md) | Paper: checks a still entity's players every few ticks (`-Dsneakypatches.trackerRecheckTicks`, default 5) instead of every tick |
 
 Platform selectors return the relevant mixins before Mixin discovers targets.
 Paper never resolves Velocity/CE Proxy targets. Velocity never resolves Paper
