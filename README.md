@@ -14,7 +14,7 @@ Use JDK 25. The Gradle wrapper downloads the build tool and dependencies.
 
 On Linux or macOS, run `./gradlew clean build`.
 
-The installable artifact is `build/libs/SneakyPatches-0.2.1.jar`. Patch projects
+The installable artifact is `build/libs/SneakyPatches-0.3.0.jar`. Patch projects
 do not produce separate JARs. Server classes and Sponge Mixin remain compile-only.
 
 The Paper target is `26.2.build.116-stable`, corresponding to the supplied
@@ -42,6 +42,7 @@ without bundling Velocity.
 | --- | --- |
 | [early-item-merge-cancellation](patches/early-item-merge-cancellation/README.md) | Returns at the start of item neighbor merging, globally |
 | [resource-pack-reconciliation](patches/resource-pack-reconciliation/README.md) | Velocity + CE Proxy: reconciles the ordered destination pack stack during configuration |
+| [tracking-range-categories](patches/tracking-range-categories/README.md) | Paper: per-entity tracking ranges by scoreboard tag (`tracking.<name>`), reloadable with `/trackingranges` |
 
 Platform selectors return the relevant mixins before Mixin discovers targets.
 Paper never resolves Velocity/CE Proxy targets. Velocity never resolves Paper
