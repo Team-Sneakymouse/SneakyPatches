@@ -41,17 +41,28 @@ public final class RangeCategories {
     /** {@code @default.<type> = spigot}: no override, the spigot.yml value applies (what the template writes). */
     public static final String USE_SPIGOT = "spigot";
 
-    public static final RangeCategories EMPTY = new RangeCategories(Map.of(), Map.of(), 0, List.of());
+    /**
+     * Setting prefix: {@code @tag.<scoreboard tag> = <category>} puts every entity carrying that existing scoreboard
+     * tag in the category, as if it also had {@code tracking.<category>}. For tags other plugins already set.
+     */
+    public static final String TAG_ALIAS_PREFIX = "@tag.";
+    /** Characters Minecraft allows in a scoreboard tag (unquoted /tag argument). */
+    private static final Pattern SCOREBOARD_TAG = Pattern.compile("[A-Za-z0-9_.+-]{1,64}");
+
+    public static final RangeCategories EMPTY = new RangeCategories(Map.of(), Map.of(), Map.of(), 0, List.of());
 
     private final Map<String, Integer> ranges;
     private final Map<String, Integer> typeDefaults;
+    /** Scoreboard tag -> category name, only for categories that exist. */
+    private final Map<String, String> tagAliases;
     private final double displayViewScale;
     private final List<String> problems;
 
-    private RangeCategories(Map<String, Integer> ranges, Map<String, Integer> typeDefaults, double displayViewScale,
-                            List<String> problems) {
+    private RangeCategories(Map<String, Integer> ranges, Map<String, Integer> typeDefaults,
+                            Map<String, String> tagAliases, double displayViewScale, List<String> problems) {
         this.ranges = ranges;
         this.typeDefaults = typeDefaults;
+        this.tagAliases = tagAliases;
         this.displayViewScale = displayViewScale;
         this.problems = problems;
     }
@@ -64,6 +75,9 @@ public final class RangeCategories {
         Map<String, Integer> ranges = new LinkedHashMap<>();
         Map<String, Integer> typeDefaults = new LinkedHashMap<>();
         Map<String, String> typesSeen = new LinkedHashMap<>();
+        // Tag aliases may name categories defined later in the file: resolved after the loop.
+        Map<String, String> aliasLines = new LinkedHashMap<>();
+        Map<String, Integer> aliasLineNumbers = new LinkedHashMap<>();
         List<String> problems = new ArrayList<>();
         double scale = 0;
         boolean scaleSeen = false;
@@ -97,10 +111,32 @@ public final class RangeCategories {
                 if (!useSpigot) typeDefaults.put(type, range);
                 continue;
             }
+            if (name.startsWith(TAG_ALIAS_PREFIX)) {
+                String tag = name.substring(TAG_ALIAS_PREFIX.length());
+                if (!SCOREBOARD_TAG.matcher(tag).matches()) {
+                    problems.add("line " + number + ": '" + name + "' needs a scoreboard tag of 1-64 characters "
+                        + "(A-Z, a-z, 0-9, _ . + -) after " + TAG_ALIAS_PREFIX);
+                    continue;
+                }
+                if (tag.startsWith(TAG_PREFIX)) {
+                    problems.add("line " + number + ": '" + tag + "' is already a category tag; " + TAG_ALIAS_PREFIX
+                        + " is for other plugins' tags");
+                    continue;
+                }
+                if (aliasLines.containsKey(tag)) {
+                    problems.add("line " + number + ": " + name + " is set twice; keeping the first ("
+                        + aliasLines.get(tag) + ")");
+                    continue;
+                }
+                aliasLines.put(tag, value);
+                aliasLineNumbers.put(tag, number);
+                continue;
+            }
             if (name.startsWith("@")) {
                 if (!name.equals(DISPLAY_VIEW_SCALE)) {
                     problems.add("line " + number + ": unknown setting '" + name + "' (known: " + DISPLAY_VIEW_SCALE
-                        + ", " + DEFAULT_PREFIX + "<" + String.join("|", TYPES) + ">)");
+                        + ", " + DEFAULT_PREFIX + "<" + String.join("|", TYPES) + ">, " + TAG_ALIAS_PREFIX
+                        + "<scoreboard tag>)");
                     continue;
                 }
                 if (scaleSeen) {
@@ -136,8 +172,30 @@ public final class RangeCategories {
             }
             ranges.put(name, range);
         }
+        Map<String, String> tagAliases = new LinkedHashMap<>();
+        for (Map.Entry<String, String> alias : aliasLines.entrySet()) {
+            String category = alias.getValue();
+            if (!ranges.containsKey(category)) {
+                problems.add("line " + aliasLineNumbers.get(alias.getKey()) + ": " + TAG_ALIAS_PREFIX + alias.getKey()
+                    + " names no category '" + category + "' (categories: "
+                    + (ranges.isEmpty() ? "none" : String.join(", ", ranges.keySet())) + ")");
+                continue;
+            }
+            tagAliases.put(alias.getKey(), category);
+        }
+        // Problems in line order, whichever pass found them.
+        problems.sort(java.util.Comparator.comparingInt(RangeCategories::lineOf));
         return new RangeCategories(Collections.unmodifiableMap(ranges), Collections.unmodifiableMap(typeDefaults),
-            scale, List.copyOf(problems));
+            Collections.unmodifiableMap(tagAliases), scale, List.copyOf(problems));
+    }
+
+    /** The line number a problem message starts with ("line N: ..."). */
+    private static int lineOf(String problem) {
+        try {
+            return Integer.parseInt(problem.substring("line ".length(), problem.indexOf(':')));
+        } catch (RuntimeException e) {
+            return Integer.MAX_VALUE;
+        }
     }
 
     /** A whole number of blocks in range, or null after reporting the problem. */
@@ -185,24 +243,43 @@ public final class RangeCategories {
         return (int) Math.max(MIN_RANGE, Math.min(Integer.MAX_VALUE, blocks));
     }
 
-    /** The widest range among the category tags in {@code tags}, or {@link #NONE}. */
+    /**
+     * The widest range among the category tags in {@code tags} and the tags with an {@code @tag.} alias, or
+     * {@link #NONE}.
+     */
     public int rangeFor(Iterable<String> tags, UnknownSink unknown) {
         int best = NONE;
         for (String tag : tags) {
-            if (!tag.startsWith(TAG_PREFIX)) continue;
-            String name = tag.substring(TAG_PREFIX.length());
-            Integer range = ranges.get(name);
-            if (range == null) {
-                unknown.accept(name);
-            } else if (range > best) {
-                best = range;
+            Integer range;
+            if (tag.startsWith(TAG_PREFIX)) {
+                String name = tag.substring(TAG_PREFIX.length());
+                range = ranges.get(name);
+                if (range == null) {
+                    unknown.accept(name);
+                    continue;
+                }
+            } else {
+                String category = tagAliases.get(tag);
+                if (category == null) continue;
+                range = ranges.get(category);
             }
+            if (range > best) best = range;
         }
         return best;
     }
 
     public static boolean isCategoryTag(String tag) {
         return tag != null && tag.startsWith(TAG_PREFIX);
+    }
+
+    /** Whether {@code tag} decides a range here: a category tag, or a tag with an {@code @tag.} alias. */
+    public boolean decidesRange(String tag) {
+        return isCategoryTag(tag) || (tag != null && tagAliases.containsKey(tag));
+    }
+
+    /** {@code @tag.} aliases in force: scoreboard tag -> category name. */
+    public Map<String, String> tagAliases() {
+        return tagAliases;
     }
 
     public Map<String, Integer> ranges() {

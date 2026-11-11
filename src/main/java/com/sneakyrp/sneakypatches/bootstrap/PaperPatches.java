@@ -7,6 +7,7 @@ public final class PaperPatches extends PlatformPatches {
     /** Each Paper Mixin configuration's package and the mixins it owns. */
     static final Map<String, List<String>> MIXINS = Map.of(
         "com.sneakyrp.sneakypatches.itemmerge.mixin", List.of("ItemEntityMixin"),
+        "com.sneakyrp.sneakypatches.pairrecheck.mixin", List.of("TrackedEntityRecheckMixin"),
         "com.sneakyrp.sneakypatches.trackingrange.mixin",
             List.of("TrackingRangeMixin", "TrackedEntityMixin", "TrackedEntityAccessor", "EntityTagMixin",
                 "DisplayViewRangeMixin", "PaperCommandsMixin"));

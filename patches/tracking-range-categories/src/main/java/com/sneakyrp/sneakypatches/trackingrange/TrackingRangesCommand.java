@@ -56,6 +56,9 @@ public final class TrackingRangesCommand extends Command {
         current.ranges().entrySet().stream().sorted(java.util.Map.Entry.comparingByValue())
             .forEach(e -> sender.sendMessage("  " + RangeCategories.TAG_PREFIX + e.getKey() + " = " + e.getValue()
                 + " blocks"));
+        current.tagAliases().forEach((tag, category) -> sender.sendMessage("  tag " + tag + " -> "
+            + RangeCategories.TAG_PREFIX + category + " = " + current.ranges().get(category) + " blocks ("
+            + RangeCategories.TAG_ALIAS_PREFIX + tag + ")"));
         for (String type : RangeCategories.TYPES) {
             Integer override = current.typeDefaults().get(type);
             sender.sendMessage("  untagged " + type + " = " + (override != null
