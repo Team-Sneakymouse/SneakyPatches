@@ -14,8 +14,10 @@ Use JDK 25. The Gradle wrapper downloads the build tool and dependencies.
 
 On Linux or macOS, run `./gradlew clean build`.
 
-The installable artifact is `build/libs/SneakyPatches-0.3.0.jar`. Patch projects
-do not produce separate JARs. Server classes and Sponge Mixin remain compile-only.
+The installable artifact is `build/libs/SneakyPatches-<version>.jar` (not the
+`-sources` JAR). The version is the commit date in UTC and its 12-character hash,
+`yyyy.MM.dd-<hash>`, so builds need a git checkout. Patch projects do not produce
+separate JARs. Server classes and Sponge Mixin remain compile-only.
 
 The Paper target is `26.2.build.116-stable`, corresponding to the supplied
 `26.2-116-37dc545` investigation, with Ignite `1.2.1` and Java 25. Version pins live
@@ -24,17 +26,16 @@ in `gradle.properties`. The Velocity test target is the installed
 Velocity version restriction. Future builds must still pass the hook and runtime
 tests; an unrestricted version range is not a compatibility guarantee.
 
-The Velocity patch compiles against the upstream CE Proxy JAR. Supply
-`-PcraftEngineProxyJar=<absolute path to craft-engine-proxy-velocity-plugin-26.8.1.jar>`
-to Gradle, or put it at `.scratch/dependencies/craftengine-proxy.jar`.
-Download it from the [upstream release](https://github.com/Xiao-MoMi/craft-engine-proxy/releases/tag/26.8.1).
-The tested JAR SHA-256 is
-`e68aa410c21d480fb7d602031535735a4bd28016ac120aa8d3b0f4695dd3b9a8`.
-The dependency is compile-only and is not included in SneakyPatches.
-It also compiles against the current Velocity executable through
-`-PvelocityJar=<absolute path to velocity.jar>` or the ignored default
-`.scratch/dependencies/velocity.jar`. This supports required injection checks
-without bundling Velocity.
+The Velocity patch compiles against the upstream CE Proxy and Velocity JARs, which
+are not published to Maven. The build downloads the pinned
+[CE Proxy 26.8.1](https://github.com/Xiao-MoMi/craft-engine-proxy/releases/tag/26.8.1)
+velocity plugin (SHA-256 `e68aa410c21d480fb7d602031535735a4bd28016ac120aa8d3b0f4695dd3b9a8`)
+and Velocity `4.2.1-SNAPSHOT` build 31 from PaperMC (SHA-256
+`b2879bb60eba6be23e99fdd659084b7adbe1190d42b7ddf296356331f8ea7c9a`) once into
+`<Gradle user home>/caches/sneakypatches/`, and fails if either checksum differs.
+To build against other copies, for example the Velocity executable a proxy runs,
+supply `-PcraftEngineProxyJar=<path>` or `-PvelocityJar=<path>`; these are used
+without a checksum. Both are compile-only and are not included in SneakyPatches.
 
 ## Included patches
 
@@ -52,6 +53,25 @@ is required; the Velocity patch also verifies that its hooks applied before
 Velocity's main method starts. There is no Bukkit plugin lifecycle.
 Independent ownership does not guarantee compatibility if future patches modify
 the same method. Review those interactions explicitly.
+
+## Publishing
+
+Pushes to `main` and manual runs of the `Publish Maven` workflow call the shared
+[`Team-Sneakymouse/ci`](https://github.com/Team-Sneakymouse/ci) Gradle workflow. It
+runs `build` (all patch tests and `verifyBundle`), then publishes the JAR, sources JAR
+and POM to `https://maven.sneakyrp.com/releases` as
+`io.github.team-sneakymouse:SneakyPatches:<version>`. Pushes that change only
+Markdown files are skipped.
+
+The POM sets `sneakyrp.deployment.type` to `ignite-mod`, which tells deployment
+automation to install the JAR in Ignite's `mods/` directory. Publishing does not
+restart any server; an update applies on the next restart.
+
+The repository is public, so it inherits the `INFISICAL_IDENTITY_ID` and
+`INFISICAL_DOMAIN` organization secrets; the Infisical identity must allow OIDC from
+`Team-Sneakymouse/SneakyPatches`. Infisical project `lords-of-minecraft`, environment
+`prod`, path `/Maven` provides `MAVEN_USERNAME` and `MAVEN_PASSWORD`.
+`publishToMavenLocal` checks the publication without credentials.
 
 ## Install
 

@@ -1,13 +1,31 @@
 import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
+import java.time.Instant
+import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
 import java.util.zip.ZipFile
 
 plugins {
     java
+    `maven-publish`
     id("io.papermc.paperweight.userdev") version "2.0.0-beta.23" apply false
 }
 
-java { toolchain.languageVersion = JavaLanguageVersion.of(25) }
+// yyyy.MM.dd-<12-character hash> of HEAD (commit date in UTC); building needs a git checkout.
+version = providers.exec {
+    workingDir(rootDir)
+    commandLine("git", "show", "-s", "--format=%ct:%h", "--abbrev=12", "HEAD")
+}.standardOutput.asText.map { commit ->
+    val (timestamp, hash) = commit.trim().split(":", limit = 2)
+    val date = DateTimeFormatter.ofPattern("yyyy.MM.dd").withZone(ZoneOffset.UTC)
+        .format(Instant.ofEpochSecond(timestamp.toLong()))
+    "$date-$hash"
+}.get()
+
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(25)
+    withSourcesJar()
+}
 dependencies {
     compileOnly("net.fabricmc:sponge-mixin:${providers.gradleProperty("mixinVersion").get()}")
     testImplementation("net.fabricmc:sponge-mixin:${providers.gradleProperty("mixinVersion").get()}")
@@ -53,6 +71,10 @@ subprojects {
     rootProject.tasks.named<Jar>("jar") {
         from(patchOutput)
     }
+    val patchSources = extensions.getByType<SourceSetContainer>().named("main").map { it.allSource }
+    rootProject.tasks.named<Jar>("sourcesJar") {
+        from(patchSources)
+    }
     rootProject.tasks.named("check") { dependsOn(patchCheck) }
 }
 
@@ -72,12 +94,15 @@ val generateModMetadata by tasks.registering {
     }
 }
 
-tasks.jar {
-    dependsOn(generateModMetadata)
-    from(metadataDirectory)
+tasks.withType<Jar>().configureEach {
     duplicatesStrategy = DuplicatesStrategy.FAIL
     isPreserveFileTimestamps = false
     isReproducibleFileOrder = true
+}
+
+tasks.jar {
+    dependsOn(generateModMetadata)
+    from(metadataDirectory)
     manifest.attributes("Implementation-Version" to project.version)
 }
 
@@ -119,6 +144,35 @@ val verifyBundle by tasks.registering {
 }
 
 tasks.check { dependsOn(verifyBundle) }
+
+publishing {
+    publications {
+        create<MavenPublication>("maven") {
+            artifactId = "SneakyPatches"
+            from(components["java"])
+            pom {
+                name = "SneakyPatches"
+                description = "Paper and Velocity Mixin patches packaged as one Ignite mod"
+                url = "https://github.com/Team-Sneakymouse/SneakyPatches"
+                // Deployment automation installs this JAR in Ignite's mods/ directory.
+                properties.put("sneakyrp.deployment.type", "ignite-mod")
+                scm {
+                    url = "https://github.com/Team-Sneakymouse/SneakyPatches"
+                    connection = "scm:git:git@github.com:Team-Sneakymouse/SneakyPatches.git"
+                }
+            }
+        }
+    }
+    repositories {
+        maven {
+            name = "sneakyrp"
+            url = uri("https://maven.sneakyrp.com/releases")
+            credentials(PasswordCredentials::class)
+            authentication { create<BasicAuthentication>("basic") }
+        }
+    }
+}
+tasks.withType<PublishToMavenRepository>().configureEach { dependsOn(tasks.check) }
 
 tasks.register<Jar>("paperProofJar") {
     dependsOn(tasks.testClasses)
