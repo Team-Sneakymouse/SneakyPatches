@@ -13,6 +13,7 @@ import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.MethodNode;
+import org.objectweb.asm.tree.TypeInsnNode;
 
 /**
  * Reads the pinned Paper classes (no Minecraft is started) and checks what skipping a still entity's tracker tick
@@ -103,5 +104,25 @@ class PaperTargetTest {
     @Test
     void updatePlayerTakesAServerPlayer() throws IOException {
         method(read(TRACKED), "updatePlayer", PLAYER_DESC);
+    }
+
+    @Test
+    void connectedPlayersArePlainServerPlayers() throws IOException {
+        // The mixin always checks an entity whose class is exactly ServerPlayer and skips subclasses (plugin NPCs),
+        // so Paper must create connected players as that exact class. Respawn reuses the same object.
+        for (var name : new String[] {
+            "net/minecraft/server/network/config/PrepareSpawnTask$Preparing",
+            "net/minecraft/server/network/config/PrepareSpawnTask$Ready"}) {
+            boolean createsPlayer = read(name).methods.stream().anyMatch(m -> {
+                for (var insn : m.instructions) {
+                    if (insn instanceof TypeInsnNode t && t.getOpcode() == Opcodes.NEW && t.desc.equals(SERVER_PLAYER))
+                        return true;
+                }
+                return false;
+            });
+            assertTrue(createsPlayer, name + " no longer creates a plain ServerPlayer");
+        }
+        var respawn = method(read("net/minecraft/server/players/PlayerList"), "respawn", null);
+        assertFalse(calls(respawn, SERVER_PLAYER, "<init>"), "respawn creates a new player object");
     }
 }
