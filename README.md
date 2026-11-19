@@ -59,7 +59,7 @@ the same method. Review those interactions explicitly.
 Pushes to `main` and manual runs of the `Publish Maven` workflow call the shared
 [`Team-Sneakymouse/ci`](https://github.com/Team-Sneakymouse/ci) Gradle workflow. It
 runs `build` (all patch tests and `verifyBundle`), then publishes the JAR, sources JAR
-and POM to `https://maven.sneakyrp.com/releases` as
+and POM to `https://maven.sneakyrp.com/sneakymouse` as
 `io.github.team-sneakymouse:SneakyPatches:<version>`. Pushes that change only
 Markdown files are skipped.
 
