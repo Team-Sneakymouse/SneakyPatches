@@ -16,7 +16,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 /**
  * Skips an entity's tracker tick (the check of every candidate player) while the entity is still, its tracker's range
  * is unchanged, and its turn has not come; see {@link PairRecheck}. Only the player checks are skipped: Paper still sends the entity's changes to
- * its viewers every tick. Players are always checked. A skipped tick changes nothing, so the next full tick does all
+ * its viewers every tick. Connected players are always checked; plugin NPCs that subclass {@link ServerPlayer} (Citizens'
+ * player NPCs) are skipped like any other entity. A skipped tick changes nothing, so the next full tick does all
  * the work Paper would have, including dropping players who left the candidate list in between.
  *
  * <p>Priority 900 puts this ahead of other patches that replace the same tick (such as the range-sized lookup), so a
@@ -48,7 +49,9 @@ abstract class TrackedEntityRecheckMixin {
         at = @At("HEAD"), cancellable = true, remap = false, require = 1)
     private void sneakyPatches$skipStill(NearbyPlayers.TrackedChunk chunk, CallbackInfo ci) {
         // No chunk: Paper clears the players, which must not wait.
-        if (PairRecheck.INTERVAL <= 1 || chunk == null || entity instanceof ServerPlayer) return;
+        // Exact class: Paper creates every connected player as a plain ServerPlayer (PaperTargetTest). Plugin NPCs
+        // subclass it, and a still NPC is as safe to skip as any other entity.
+        if (PairRecheck.INTERVAL <= 1 || chunk == null || entity.getClass() == ServerPlayer.class) return;
         double x = entity.getX(), y = entity.getY(), z = entity.getZ();
         // NaN never equals itself, so a new tracker's first tick is always a check.
         boolean still = x == sneakyPatches$checkedX && y == sneakyPatches$checkedY && z == sneakyPatches$checkedZ

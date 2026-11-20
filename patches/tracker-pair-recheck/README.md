@@ -17,7 +17,8 @@ once, as in Paper, when:
 - its tracker's range changed (tracking-range-categories: a `tracking.` tag or `@tag.` alias added or removed, or
   `/trackingranges reload`),
 - it was just added to the tracker (spawned, loaded, or entered the world): Paper checks every player immediately,
-- it is a player.
+- it is a connected player. Plugin NPCs that subclass Paper's player class (Citizens' player NPCs) are not
+  treated as players: a still NPC is checked every few ticks like any other entity.
 
 Paper still sends every entity's changes (metadata, equipment, velocity) every tick; only the player checks are
 skipped. A skipped tick changes nothing, so the next check does all the work Paper would have, including dropping
@@ -57,7 +58,8 @@ and lag more. Changing it needs a restart. Once the server is up, the log says w
 - `MinecraftServer.currentTick`: the turn counter.
 
 `PaperTargetTest` checks that the skipped method holds the player checks and not the change sending, that
-`newTrackerTick` sends changes separately, that new trackers and joining players are checked at once in
+`newTrackerTick` sends changes separately, that connected players are created as plain `ServerPlayer` (so the
+exact-class player test leaves NPC subclasses to the skip), that new trackers and joining players are checked at once in
 `ChunkMap.addEntity`, and that hide/show update the tracker directly. A failure after a Paper upgrade means: reread
 the tracker before shipping.
 
