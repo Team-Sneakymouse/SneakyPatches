@@ -9,6 +9,7 @@ public final class PaperPatches extends PlatformPatches {
         "com.sneakyrp.sneakypatches.idlesend.mixin", List.of("ServerEntityIdleMixin", "TrackerLoopIdleMixin"),
         "com.sneakyrp.sneakypatches.itemmerge.mixin", List.of("ItemEntityMixin"),
         "com.sneakyrp.sneakypatches.pairrecheck.mixin", List.of("TrackedEntityRecheckMixin"),
+        "com.sneakyrp.sneakypatches.rangelookup.mixin", List.of("TrackedEntityLookupMixin"),
         "com.sneakyrp.sneakypatches.trackingrange.mixin",
             List.of("TrackingRangeMixin", "TrackedEntityMixin", "TrackedEntityAccessor", "EntityTagMixin",
                 "DisplayViewRangeMixin", "PaperCommandsMixin"));
