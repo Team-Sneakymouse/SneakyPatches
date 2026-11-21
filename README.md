@@ -46,6 +46,7 @@ without a checksum. Both are compile-only and are not included in SneakyPatches.
 | [tracking-range-categories](patches/tracking-range-categories/README.md) | Paper: per-entity tracking ranges by scoreboard tag (`tracking.<name>`, or any existing tag mapped with `@tag.<tag> = <category>`), reloadable with `/trackingranges` |
 | [tracker-pair-recheck](patches/tracker-pair-recheck/README.md) | Paper: checks a still entity's players every few ticks (`-Dsneakypatches.trackerRecheckTicks`, default 5) instead of every tick |
 | [idle-send-skip](patches/idle-send-skip/README.md) | Paper: skips the tracker's per-tick change check for entities with no viewers (`-Dsneakypatches.idleSendSkip=false` turns it off) |
+| [range-sized-lookup](patches/range-sized-lookup/README.md) | Paper: checks an entity against the players near its tracking range instead of every player whose view distance covers it (`-Dsneakypatches.rangeSizedLookup=false` turns it off) |
 
 Platform selectors return the relevant mixins before Mixin discovers targets.
 Paper never resolves Velocity/CE Proxy targets. Velocity never resolves Paper
